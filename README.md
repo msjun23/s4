@@ -1,3 +1,16 @@
+# Running Environment setting
+```bash
+docker run -v /dir/for/this/repo/:/root/code -v /dir/for/data/ssd/:/root/data -it --gpus=all --ipc=host --name=s4 pytorch/pytorch:2.1.2-cuda12.1-cudnn8-devel
+# E.g., docker run -v /home/msj/python_ws/s4/:/root/code -v /data/msj/:/root/data -it --gpus=all --ipc=host --name=s4 pytorch/pytorch:2.1.2-cuda12.1-cudnn8-devel
+cd /root/code
+
+# This will be automatically uninstall pytorch:2.1.2 and re-install pytorch:2.1.0
+# because of the torchtext version, but it doesn't matter.
+pip install -r requirements.txt
+```
+
+---
+
 # Structured State Spaces for Sequence Modeling
 
 This repository provides the official implementations and experiments for models related to [S4](https://arxiv.org/abs/2111.00396),

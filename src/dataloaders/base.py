@@ -21,6 +21,7 @@ def deprecated(cls_or_func):
     return _deprecated
 
 # Default data path is environment variable or hippo/data
+os.environ["DATA_PATH"] = "/root/data"      # Set dataset save dir
 if (default_data_path := os.getenv("DATA_PATH")) is None:
     default_data_path = Path(__file__).parent.parent.parent.absolute()
     default_data_path = default_data_path / "data"

@@ -5,7 +5,7 @@ scikit-learn
 matplotlib
 tqdm
 rich
-torchtext
+torchtext==0.16.0
 lit # Getting installation errors with torch 2.0 if this isn't installed
 # torchvision
 pytorch-lightning==2.0.4

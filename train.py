@@ -292,6 +292,11 @@ class SequenceLightningModule(pl.LightningModule):
         """Passes a batch through the encoder, backbone, and decoder"""
         # z holds arguments such as sequence length
         x, y, *z = batch # z holds extra dataloader info such as resolution
+        '''
+        x (data)  : [batch_size, H * W = L, C], tensor
+        y (labels): [batch_size], tensor
+        z         : extra info, dict
+        '''
         if len(z) == 0:
             z = {}
         else:
@@ -299,9 +304,27 @@ class SequenceLightningModule(pl.LightningModule):
             z = z[0]
 
         x, w = self.encoder(x, **z) # w can model-specific constructions such as key_padding_mask for transformers or state for RNNs
+        '''
+        print(x.shape, w)
+        ---- Encoder ----
+        x (data embedding): [Batch_size, h * w = L, H = d_model], tensor
+        w                 : extra info, dict
+        '''
         x, state = self.model(x, **w, state=self._state)
+        '''
+        print(x.shape, state)
+        ---- Main model, containing SSM ----
+        x (data embedding): [Batch_size, h * w = L, H = d_model], tensor
+        state             : # state = n_layers, list
+        '''
         self._state = state
         x, w = self.decoder(x, state=state, **z)
+        '''
+        print(x.shape, w)
+        ---- Decoder ----
+        x (prediction): [Batch_size, # of probabilities = labels], tensor
+        w             : extra info, dict
+        '''
         return x, y, w
 
     def step(self, x_t):
@@ -697,6 +720,11 @@ def train(config):
         pl.seed_everything(config.train.seed, workers=True)
     trainer = create_trainer(config)
     model = SequenceLightningModule(config)
+    with open('/root/code/S4.txt', "w") as f:
+        # Save model structure
+        f.write(str(model))
+        # Save # of model parameters
+        f.write('\n\n' + ('Total number of parameters: %d' % sum([m.numel() for m in model.parameters()])))
 
     # Load pretrained_model if specified
     if config.train.get("pretrained_model_path", None) is not None:
@@ -710,14 +738,15 @@ def train(config):
 
         # Added by KS for pre-training
         # [22-07-21 AG] refactored, untested
-        if config.train.get("ignore_pretrained_layers", False):
-            pretrained_dict = pretrained_model.state_dict()
-            model_dict = model.state_dict()
-            for k, v in model_dict.items():
-                for ignore_layer in config.train.ignore_pretrained_layers:
-                    if ignore_layer in k:
-                        pretrained_dict[k] = v
-            model.load_state_dict(pretrained_dict)
+        ''' Commented out by Issues#132 (https://github.com/state-spaces/s4/issues/132) '''
+        # if config.train.get("ignore_pretrained_layers", False):
+        #     pretrained_dict = pretrained_model.state_dict()
+        #     model_dict = model.state_dict()
+        #     for k, v in model_dict.items():
+        #         for ignore_layer in config.train.ignore_pretrained_layers:
+        #             if ignore_layer in k:
+        #                 pretrained_dict[k] = v
+        #     model.load_state_dict(pretrained_dict)
         if config.train.get("pretrained_freeze_encoder", False):
             for name, param in model.named_parameters():
                 if not("decoder" in name): param.requires_grad = False

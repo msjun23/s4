@@ -1432,19 +1432,20 @@ class SSMKernelDPLR(SSMKernelDiag):
     def double_length(self):
         self._setup_C(2*self.l_kernel)
 
-    @torch.no_grad()
-    def _check(self):
-        """Check if A, B, C parameters and vanilla SSMKernel construction can be recovered"""
+    ''' Commented out by Issues#129 (https://github.com/state-spaces/s4/issues/129) '''
+    # @torch.no_grad()
+    # def _check(self):
+    #     """Check if A, B, C parameters and vanilla SSMKernel construction can be recovered"""
 
-        # assert self.l_kernel > 0, "Set up module first"
+    #     # assert self.l_kernel > 0, "Set up module first"
 
-        K = self.forward(L=self.l_max)[0]
+    #     K = self.forward(L=self.l_max)[0]
 
-        self._setup_step()
-        K_ = krylov(self.l_max, self.dA, self.dB, self.dC)
+    #     self._setup_step()
+    #     K_ = krylov(self.l_max, self.dA, self.dB, self.dC)
 
-        diff = K - K_
-        print("checking DPLR Kernel construction", torch.sum(diff ** 2))
+    #     diff = K - K_
+    #     print("checking DPLR Kernel construction", torch.sum(diff ** 2))
 
     @torch.no_grad()
     def _setup_linear(self):
@@ -1810,6 +1811,7 @@ class S4Block(nn.Module):
         self,
         d_model,
         bottleneck=None,
+        activation='gelu',
         gate=None,
         gate_act=None,
         mult_act=None,
@@ -1864,6 +1866,8 @@ class S4Block(nn.Module):
         self.layer = FFTConv(d_model, transposed=False, dropout=dropout, tie_dropout=tie_dropout, **layer_args)
 
         # Pointwise operations
+        # Activation after layer
+        self.activation = Activation(activation)
 
         # Activation after (optional) multiplication by gate branch
         self.mult_activation = Activation(mult_act)
@@ -1917,7 +1921,7 @@ class S4Block(nn.Module):
             x = self.input_linear(x)
 
         y, state = self.layer(x, **kwargs)
-
+        y = self.activation(y)
 
         if self.gate is not None:
             y = self.output_gate(y)

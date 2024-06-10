@@ -103,6 +103,10 @@ class SequenceResidualBlock(SequenceModule):
 
         # Black box layer
         y_for, new_state = self.layer(y, state=state, **kwargs)
+        '''
+        1. from /src/models/sequence/backbones/model.py
+        self.layer: S4Block -> s4block.py
+        '''
         if self.bidirectional:
             assert state is None
             y_rev, _ = self.reverse_layer(y, state=state, **kwargs)

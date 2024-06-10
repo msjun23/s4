@@ -123,6 +123,10 @@ class SequenceModel(SequenceModule):
         next_states = []
         for layer, prev_state in zip(self.layers, prev_states):
             outputs, state = layer(outputs, *args, state=prev_state, **kwargs)
+            '''
+            0. from /train.py
+            layer: SequenceResidualBlock -> block.py
+            '''
             next_states.append(state)
             if self.track_norms: output_norms.append(torch.mean(outputs.detach() ** 2))
         if self.norm is not None: outputs = self.norm(outputs)

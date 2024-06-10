@@ -82,6 +82,7 @@ class FFTConv(SequenceModule):
     def forward(self, x, state=None, rate=1.0, **kwargs): # absorbs return_output and transformer src mask
         """
         x: (B D L) if self.transposed else (B L D)
+        D = H = d_model
         """
 
         # Always work with (B D L) dimension in this module
@@ -90,7 +91,16 @@ class FFTConv(SequenceModule):
 
         # Compute SS Kernel
         l_kernel = L if self.L is None else min(L, round(self.L / rate))
+        '''
+        3. from /src/models/sequence/modules/s4block.py
+        Compute K matrix; kernel -> ssm.py
+        self.kernel: SSMKernelDPLR
+        '''
         k, k_state =  self.kernel(L=l_kernel, rate=rate, state=state) # (C H L) (B C H L)
+        # k = nn.Parameter(torch.randn_like(k))
+        '''
+        k: [Channels, H = d_model, L = h * w], tensor
+        '''
 
         # Convolution
         if self.bidirectional:

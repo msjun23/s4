@@ -165,6 +165,20 @@ class S4Block(SequenceModule):
         if self.bottleneck is not None:
             x = self.input_linear(x)
 
+        '''
+        2. from /src/models/sequence/backbones/block.py
+        Actual FFTConv calculation part -> fftconv.py
+        self.layer: FFTConv(
+                        (activation): Identity()
+                        (kernel): SSMKernelDPLR()       <- The kernel is defined in fftconv.py
+                        (drop): Identity()
+                        (drop_kernel): Identity()
+                    )
+        Get x (input) and **kwargs (e.g., state)
+        Out y (output) and state
+            x, y: [Batch_size, L, H = d_model]
+            state: {} if not None else None
+        '''
         y, state = self.layer(x, **kwargs)
 
         y = self.activation(y)

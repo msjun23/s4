@@ -17,6 +17,8 @@ from datasets import DatasetDict, Value, load_dataset
 
 from src.dataloaders.base import default_data_path, SequenceDataset, ImageResolutionSequenceDataset
 
+# ListOps, Pathfinder and etc. are contained in LRA (Long Range Arena) folder
+default_data_path = default_data_path / 'LRA'
 
 class IMDB(SequenceDataset):
     _name_ = "imdb"

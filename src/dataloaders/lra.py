@@ -70,7 +70,13 @@ class IMDB(SequenceDataset):
         dataset_train, self.dataset_test = dataset["train"], dataset["test"]
         if self.val_split == 0.0:
             # Use test set as val set, as done in the LRA paper
-            self.dataset_train, self.dataset_val = dataset_train, None
+            '''
+            self.dataset_val = None
+            -> self.dataset_val = self.dataset_test
+            To avoid none val_dataloader issue from Issues#119 of s4 repo.
+            https://github.com/state-spaces/s4/issues/119
+            '''
+            self.dataset_train, self.dataset_val = dataset_train, self.dataset_test
         else:
             train_val = dataset_train.train_test_split(
                 test_size=self.val_split, seed=self.seed

@@ -305,22 +305,19 @@ class SequenceLightningModule(pl.LightningModule):
 
         x, w = self.encoder(x, **z) # w can model-specific constructions such as key_padding_mask for transformers or state for RNNs
         '''
-        print(x.shape, w)
         ---- Encoder ----
         x (data embedding): [Batch_size, h * w = L, H = d_model], tensor
         w                 : extra info, dict
         '''
         x, state = self.model(x, **w, state=self._state)
+        self._state = state
         '''
-        print(x.shape, state)
         ---- Main model, containing SSM ----
         x (data embedding): [Batch_size, h * w = L, H = d_model], tensor
         state             : # state = n_layers, list
         '''
-        self._state = state
         x, w = self.decoder(x, state=state, **z)
         '''
-        print(x.shape, w)
         ---- Decoder ----
         x (prediction): [Batch_size, # of probabilities = labels], tensor
         w             : extra info, dict

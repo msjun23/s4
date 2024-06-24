@@ -643,7 +643,8 @@ class AAN(SequenceDataset):
             remove_columns=["text1", "text2"],
             keep_in_memory=True,
             load_from_cache_file=False,
-            num_proc=max(self.n_workers, 1),
+            num_proc=1  # Fix num_proc to 1 to reduce memory consumption; num_proc > 1 can cause runtime error
+            # num_proc=max(self.n_workers, 1),
         )
         vocab = torchtext.vocab.build_vocab_from_iterator(
             dataset["train"]["tokens1"] + dataset["train"]["tokens2"],
@@ -669,7 +670,8 @@ class AAN(SequenceDataset):
             remove_columns=["tokens1", "tokens2"],
             keep_in_memory=True,
             load_from_cache_file=False,
-            num_proc=max(self.n_workers, 1),
+            num_proc=1  # Fix num_proc to 1 to reduce memory consumption; num_proc > 1 can cause runtime error
+            # num_proc=max(self.n_workers, 1),
         )
 
         if cache_dir is not None:

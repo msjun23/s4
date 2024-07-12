@@ -3,6 +3,7 @@
 The SequenceModel class implements a generic (batch, length, d_input) -> (batch, length, d_output) transformation.
 """
 
+# import vis
 from functools import partial
 from typing import Mapping, Optional
 
@@ -15,6 +16,9 @@ from src.models.sequence.backbones.block import SequenceResidualBlock
 from src.models.sequence.base import SequenceModule
 from src.models.nn import Normalization, DropoutNd
 
+from spikingjelly.activation_based import functional
+# from src.models.sequence.backbones.snn import SNNBlock
+from src.models.sequence.backbones.snn import InputMaskingNet
 
 class SequenceModel(SequenceModule):
     """Flexible isotropic deep neural network backbone.
@@ -61,6 +65,10 @@ class SequenceModel(SequenceModule):
         # Input dropout (not really used)
         dropout_fn = partial(DropoutNd, transposed=self.transposed) if tie_dropout else nn.Dropout
         self.drop = dropout_fn(dropinp) if dropinp > 0.0 else nn.Identity()
+
+        # SNN
+        # self.snn_block = SNNBlock(step_mode='s', _layer=layer)
+        self.input_masking_net = InputMaskingNet(dim=d_model, mode='m')
 
         layer = to_list(layer, recursive=False)
 
@@ -114,6 +122,36 @@ class SequenceModel(SequenceModule):
         if self.transposed: inputs = rearrange(inputs, 'b ... d -> b d ...')
         inputs = self.drop(inputs)
 
+        # SNN
+        # # functional.reset_net(self.snn_block)            # code for 240625-SNN-masked-output-S4-ListOps
+        # # spiking_masks = self.snn_block(inputs, len(self.layers))
+        functional.reset_net(self.input_masking_net)
+        spiking_mask = self.input_masking_net(inputs.permute(1,0,2))    # [B, L, D] -> [L, B, D] (L == T)
+        spiking_mask = spiking_mask.permute(1,0,2)                      # [B, L, D], tensor([0., 1.]
+        # # for i in range(256):
+        # #     _spk_mask = spiking_mask[0,:,i]
+        # #     if _spk_mask.sum().item() != 0:
+        # #         print(i, _spk_mask.unique())
+        # # vis.save_BLD_as_image(inputs, 0, 'ori_inputs_0.png')
+        # # vis.save_summed_BLD_graph(inputs, 0, 'ori_inputs_0_sum.png')
+        # # vis.save_BLD_zero_ratio_graph(inputs, 0, 'ori_inputs_0_zero_ratio.png')
+        # b_idx=0
+        # # vis.save_BLD_path_as_image(inputs, b_idx, 'pathfinder_ori.png')
+        # # vis.long_term_vis(inputs, 'long_term_inputs_ori.png')
+        # # vis.save_BLD_path_as_image(spiking_mask, b_idx, 'pathfinder_spk_mask.png')
+        # # vis.save_BLD_path_spk_frq_as_image(spiking_mask, b_idx, 'pathfinder_spk_mask_spk_frequency.png')
+        # # vis.long_term_vis(spiking_mask, 'long_term_spiking_mask.png')
+        # # vis.save_BLD_path_as_33grid_image(inputs, b_idx, 'D_imgs_inputs_ori.png')
+        inputs = spiking_mask * inputs
+        
+        # # vis.save_BLD_as_image(inputs, 0, 'inputs_0.png')
+        # # vis.save_summed_BLD_graph(inputs, 0, 'inputs_0_sum.png')
+        # # vis.save_BLD_zero_ratio_graph(inputs, 0, 'inputs_0_zero_ratio.png')
+        # # vis.save_BLD_path_as_image(inputs, b_idx, 'pathfinder.png')
+        # # # vis.long_term_vis(inputs, 'long_term_inputs.png')
+        # # vis.save_BLD_path_as_33grid_image(spiking_mask, b_idx, 'D_imgs_spiking_mask.png')
+        # # vis.save_BLD_path_as_33grid_image(inputs, b_idx, 'D_imgs_inputs_masked.png')
+
         # Track norms
         if self.track_norms: output_norms = [torch.mean(inputs.detach() ** 2)]
 
@@ -121,6 +159,25 @@ class SequenceModel(SequenceModule):
         outputs = inputs
         prev_states = [None] * len(self.layers) if state is None else state
         next_states = []
+        # ----- original
+        # for layer, prev_state in zip(self.layers, prev_states):
+        #     outputs, state = layer(outputs, *args, state=prev_state, **kwargs)
+        # ----- Dual SSM; origin, spike input
+        # layer_idx = 0
+        # for layer, spike_layer, prev_state, spiking_mask in zip(self.layers, self.spike_layers, prev_states, spiking_masks):
+        #     assert outputs.shape == spiking_mask.shape
+        #     outputs, state = layer(outputs, *args, state=prev_state, layer_idx=layer_idx, **kwargs)
+        #     spike_outputs, spike_state = spike_layer(spiking_mask, *args, state=prev_state, layer_idx=layer_idx, **kwargs)
+        #     assert outputs.shape == spike_outputs.shape
+        #     outputs = outputs * spike_outputs
+        #     layer_idx += 1
+        # ----- Spike masked SSM outputs; CURRENT BEST
+        # layer_idx = 0
+        # for layer, prev_state in zip(self.layers, prev_states):
+        #     outputs, state = layer(outputs, *args, state=prev_state, layer_idx=layer_idx, **kwargs)
+        #     spike_mask = self.snn_block(outputs)        # code for 240625-SNN-masked-output-S4-ListOps
+        #     layer_idx += 1
+        # ----- Spike masked input SSM; Input -> SNN (through L-dim) -> spike masked input -> SSM
         for layer, prev_state in zip(self.layers, prev_states):
             outputs, state = layer(outputs, *args, state=prev_state, **kwargs)
             '''
@@ -137,6 +194,8 @@ class SequenceModel(SequenceModule):
             metrics = to_dict(output_norms, recursive=False)
             self.metrics = {f'norm/{i}': v for i, v in metrics.items()}
 
+        # vis.save_BLD_path_as_33grid_image(outputs, b_idx, 'D_imgs_outputs_masked.png')
+        # exit()
         return outputs, next_states
 
     @property
@@ -158,6 +217,9 @@ class SequenceModel(SequenceModule):
         return [layer.default_state(*batch_shape, device=device) for layer in self.layers]
 
     def step(self, x, state, **kwargs):
+        print(x.shape, state)
+        print('src/models/sequence/backbones/model.py/step')
+        exit()
         # Apply layers
         prev_states = [None] * len(self.layers) if state is None else state
         next_states = []

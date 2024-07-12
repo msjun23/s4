@@ -542,6 +542,7 @@ class SSMKernelDiag(SSMKernel):
             B = self.B # (1 S N)
             C = self.C # (C H N)
         else:
+            # A_real & A_imag are registered at register_params()
             A = -param_transform(self.A_real, self.real_transform) - 1j * param_transform(self.A_imag, self.imag_transform)
             B = _r2c(self.B) # (1 S N)
             C = _r2c(self.C) # (C H N)
@@ -804,8 +805,23 @@ class SSMKernelDPLR(SSMKernelDiag):
         discrete_L = round(self.l_kernel.item()/rate)
 
         dt, A, B, C, P, Q = self._get_params(rate)
+        ''' E.g., experiment=lra/s4-listops
+        print(dt.shape, A.shape, B.shape, C.shape, P.shape, Q.shape)
+        
+        dt: torch.Size([256, 1])
+        A (Lambda): torch.Size([256, 2])
+        B: torch.Size([1, 256, 2])
+        C: torch.Size([2, 256, 2])
+        P: torch.Size([1, 256, 2])
+        Q: torch.Size([1, 256, 2])
+        
+        # Check if Q is the conjugate of P
+        is_conjugate = torch.allclose(Q, torch.conj(P))
+        print('Q is conjugate of P:', is_conjugate)
+        '''
 
         # Get FFT nodes of right length
+        # z = 2 * (1 - omega) / (1 + omega)
         omega, z = self._omega(discrete_L, dtype=A.dtype, device=A.device, cache=(rate==1.0))
 
         # Augment B
@@ -844,6 +860,17 @@ class SSMKernelDPLR(SSMKernelDiag):
             cauchy_mult = cauchy_naive
         # Calculate resolvent at omega
         r = cauchy_mult(v, z, A)
+        '''
+        v: [C Q] & [B P],                  [B+1+R, C+R, H, N]
+        z: 2 * (1 - omega) / (1 + omega),  [L//2+1]
+        A: Lambda,                         [S, N]
+        dt is incorporated into each term, [H, 1]
+        cauchy_mult: Black-box Cauchy kernel; "Algorithm 1 S4 Convolution Kernel (Sketch)" (S4 paper)
+        
+        r: k_ij(w) matrix,                 [B+1+R, C+R, H, L//2+1]
+        E.g., experiment=lra/s4-listops
+        torch.Size([2, 3, 256, 2]) torch.Size([1025]) torch.Size([256, 2]) torch.Size([256, 1]) torch.Size([2, 3, 256, 1025])
+        '''
 
         # Low-rank Woodbury correction
         if self.rank == 1:

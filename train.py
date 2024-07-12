@@ -758,6 +758,7 @@ def train(config):
         trainer.fit(model, ckpt_path=config.train.ckpt)
     else:
         trainer.fit(model)
+    # model = model.load_from_checkpoint(config.train.ckpt)
     if config.train.test:
         trainer.test(model)
 

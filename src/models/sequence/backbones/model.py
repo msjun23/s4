@@ -15,6 +15,9 @@ from src.models.sequence.backbones.block import SequenceResidualBlock
 from src.models.sequence.base import SequenceModule
 from src.models.nn import Normalization, DropoutNd
 
+from spikingjelly.activation_based import functional
+from src.models.sequence.backbones.snn import InputMaskingNet
+
 
 class SequenceModel(SequenceModule):
     """Flexible isotropic deep neural network backbone.
@@ -61,6 +64,9 @@ class SequenceModel(SequenceModule):
         # Input dropout (not really used)
         dropout_fn = partial(DropoutNd, transposed=self.transposed) if tie_dropout else nn.Dropout
         self.drop = dropout_fn(dropinp) if dropinp > 0.0 else nn.Identity()
+        
+        # SNN
+        self.input_masking_net = InputMaskingNet(dim=d_model, mode='m')
 
         layer = to_list(layer, recursive=False)
 
@@ -113,6 +119,12 @@ class SequenceModel(SequenceModule):
         """ Inputs assumed to be (batch, sequence, dim) """
         if self.transposed: inputs = rearrange(inputs, 'b ... d -> b d ...')
         inputs = self.drop(inputs)
+
+        # SNN
+        functional.reset_net(self.input_masking_net)
+        spiking_mask = self.input_masking_net(inputs.permute(1,0,2))    # [B, L, D] -> [L, B, D] (L == T)
+        spiking_mask = spiking_mask.permute(1,0,2)                      # [B, L, D], tensor([0., 1.]
+        inputs = spiking_mask * inputs
 
         # Track norms
         if self.track_norms: output_norms = [torch.mean(inputs.detach() ** 2)]

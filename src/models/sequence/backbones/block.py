@@ -17,6 +17,7 @@ from src.models.sequence.modules.pool import registry as pool_registry
 from src.models.nn.residual import registry as residual_registry
 import src.utils as utils
 import src.utils.registry as registry
+from mamba_ssm import Mamba
 
 
 class SequenceResidualBlock(SequenceModule):
@@ -45,7 +46,12 @@ class SequenceResidualBlock(SequenceModule):
         self.bidirectional = bidirectional
         self.transposed = transposed
 
-        self.layer = utils.instantiate(registry.layer, layer, d_input)
+        # self.layer = utils.instantiate(registry.layer, layer, d_input)
+        self.layer = Mamba(d_model=d_input, 
+                           d_state=layer.d_state, 
+                           dt_min=layer.dt_min, dt_max=layer.dt_max, 
+                           )
+        self.layer.d_output = d_input
         if self.bidirectional:
             self.reverse_layer = utils.instantiate(registry.layer, layer, d_input)
             self.bidirectional_linear = nn.Linear(2*self.layer.d_output, self.layer.d_output)
@@ -102,7 +108,8 @@ class SequenceResidualBlock(SequenceModule):
         if self.norm is not None and self.prenorm: y = self.norm(y)
 
         # Black box layer
-        y_for, new_state = self.layer(y, state=state, **kwargs)
+        # y_for, new_state = self.layer(y, state=state, **kwargs, layer_idx=layer_idx)
+        y_for = self.layer(y)   # Mamba; selective SSM
         '''
         1. from /src/models/sequence/backbones/model.py
         self.layer: S4Block -> s4block.py

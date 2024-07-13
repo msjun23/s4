@@ -14,6 +14,7 @@ from src.utils.config import to_list, to_dict
 from src.models.sequence.backbones.block import SequenceResidualBlock
 from src.models.sequence.base import SequenceModule
 from src.models.nn import Normalization, DropoutNd
+from src.models.sequence.backbones.seq_enhancement import ImportanceWeighting, DenoisingAutoencoder
 
 
 class SequenceModel(SequenceModule):
@@ -61,6 +62,15 @@ class SequenceModel(SequenceModule):
         # Input dropout (not really used)
         dropout_fn = partial(DropoutNd, transposed=self.transposed) if tie_dropout else nn.Dropout
         self.drop = dropout_fn(dropinp) if dropinp > 0.0 else nn.Identity()
+
+        # To enhance input sequence
+            # 1. Self-Attention layer
+        num_head = 16
+        self.attention = nn.MultiheadAttention(embed_dim=d_model, num_heads=num_head, dropout=0.1)
+            # 2. Importance Weighting
+        # self.importance_weighting = ImportanceWeighting(input_dim=d_model)
+            # 3. Noise Filtering
+        # self.denoising_ae = DenoisingAutoencoder(input_dim=d_model, hidden_dim=d_model//2)
 
         layer = to_list(layer, recursive=False)
 
@@ -113,6 +123,16 @@ class SequenceModel(SequenceModule):
         """ Inputs assumed to be (batch, sequence, dim) """
         if self.transposed: inputs = rearrange(inputs, 'b ... d -> b d ...')
         inputs = self.drop(inputs)
+
+        # To enhance input sequence
+            # 1. Self-Attention layer
+        inputs = inputs.transpose(0, 1)     # [B, L, D] -> [L, B, D]
+        inputs, attn_w = self.attention(inputs, inputs, inputs)
+        inputs = inputs.transpose(0, 1)     # [L, B, D] -> [B, L, D]
+            # 2. Importance Weighting
+        # inputs, importance_w = self.importance_weighting(inputs)  # [B, L, D]
+            # 3. Noise Filtering
+        # inputs = self.denoising_ae(inputs)
 
         # Track norms
         if self.track_norms: output_norms = [torch.mean(inputs.detach() ** 2)]

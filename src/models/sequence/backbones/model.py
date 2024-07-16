@@ -128,6 +128,7 @@ class SequenceModel(SequenceModule):
         functional.reset_net(self.input_masking_net)
         spiking_mask = self.input_masking_net(inputs.permute(1,0,2))    # [B, L, D] -> [L, B, D] (L == T)
         spiking_mask = spiking_mask.permute(1,0,2)                      # [B, L, D], tensor([0., 1.]
+        assert inputs.shape == spiking_mask.shape
         # # for i in range(256):
         # #     _spk_mask = spiking_mask[0,:,i]
         # #     if _spk_mask.sum().item() != 0:

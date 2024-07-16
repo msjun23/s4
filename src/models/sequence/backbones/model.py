@@ -66,7 +66,10 @@ class SequenceModel(SequenceModule):
         # To enhance input sequence
             # 1. Self-Attention layer
         num_head = 16
-        self.attention = nn.MultiheadAttention(embed_dim=d_model, num_heads=num_head, dropout=0.1)
+        self.attention = nn.MultiheadAttention(embed_dim=d_model, 
+                                               num_heads=num_head, 
+                                               dropout=0.1, 
+                                               batch_first=True) # Get [B, L, D]
             # 2. Importance Weighting
         # self.importance_weighting = ImportanceWeighting(input_dim=d_model)
             # 3. Noise Filtering
@@ -126,11 +129,9 @@ class SequenceModel(SequenceModule):
 
         # To enhance input sequence
             # 1. Self-Attention layer
-        inputs = inputs.transpose(0, 1)     # [B, L, D] -> [L, B, D]
-        inputs, attn_w = self.attention(inputs, inputs, inputs)
-        inputs = inputs.transpose(0, 1)     # [L, B, D] -> [B, L, D]
+        inputs, attn_w = self.attention(inputs, inputs, inputs)     # [B, L, D]
             # 2. Importance Weighting
-        # inputs, importance_w = self.importance_weighting(inputs)  # [B, L, D]
+        # inputs, importance_w = self.importance_weighting(inputs)    # [B, L, D]
             # 3. Noise Filtering
         # inputs = self.denoising_ae(inputs)
 

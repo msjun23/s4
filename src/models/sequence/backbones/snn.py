@@ -65,7 +65,7 @@ class InputMaskingNet(nn.Module):
         self.lif = neuron.LIFNode(surrogate_function=surrogate.ATan(), step_mode=mode)
         
     def forward(self, x):
-        L, B, H = x.shape
+        L, B, D = x.shape
         # Down sampling large sequence length
         x = self.downsampling(x)
         x = self.lin(x)

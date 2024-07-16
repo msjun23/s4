@@ -44,33 +44,14 @@ class SNNBlock(nn.Module):
         
         return y
     
-class DownsamplingLayer(nn.Module):
-    def __init__(self, dim, input_length, output_length):
-        super(DownsamplingLayer, self).__init__()
-        self.conv = nn.Conv1d(in_channels=dim, out_channels=dim, kernel_size=1, stride=input_length // output_length)
-
-    def forward(self, x):
-        # x: [seq_len, batch_size, feature_dim]
-        x = x.permute(1, 2, 0)  # Change to [batch_size, feature_dim, seq_len]
-        x = self.conv(x)
-        x = x.permute(2, 0, 1)  # Change back to [seq_len, batch_size, feature_dim]
-        return x
-    
 class InputMaskingNet(nn.Module):
     def __init__(self, dim=512, mode='m'):
         super().__init__()
         
-        self.downsampling = DownsamplingLayer(dim=dim, input_length=16384, output_length=1024)
         self.lin = layer.Linear(in_features=dim, out_features=dim, step_mode=mode)
         self.lif = neuron.LIFNode(surrogate_function=surrogate.ATan(), step_mode=mode)
         
     def forward(self, x):
-        L, B, D = x.shape
-        # Down sampling large sequence length
-        x = self.downsampling(x)
         x = self.lin(x)
         x = self.lif(x)
-        # Up sampling to original sequence length
-        x = x.permute(1, 2, 0)  # [batch_size, dim, sequence_length]
-        x = F.interpolate(x, size=L, mode='linear', align_corners=True).permute(2, 0, 1)
         return x

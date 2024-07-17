@@ -3,7 +3,7 @@
 The SequenceModel class implements a generic (batch, length, d_input) -> (batch, length, d_output) transformation.
 """
 
-# import vis
+import vis
 from functools import partial
 from typing import Mapping, Optional
 
@@ -18,7 +18,7 @@ from src.models.nn import Normalization, DropoutNd
 
 from spikingjelly.activation_based import functional
 # from src.models.sequence.backbones.snn import SNNBlock
-from src.models.sequence.backbones.snn import InputMaskingNet
+from src.models.sequence.backbones.snn import SequenceMaskingNet, ImageMaskingNet
 
 class SequenceModel(SequenceModule):
     """Flexible isotropic deep neural network backbone.
@@ -68,7 +68,8 @@ class SequenceModel(SequenceModule):
 
         # SNN
         # self.snn_block = SNNBlock(step_mode='s', _layer=layer)
-        self.input_masking_net = InputMaskingNet(dim=d_model, mode='m')
+        # self.masking_net = SequenceMaskingNet(dim=d_model, mode='m')
+        self.masking_net = ImageMaskingNet(dim=d_model, mode='m', height=int(layer.l_max**0.5), width=int(layer.l_max**0.5))
 
         layer = to_list(layer, recursive=False)
 
@@ -125,9 +126,9 @@ class SequenceModel(SequenceModule):
         # SNN
         # # functional.reset_net(self.snn_block)            # code for 240625-SNN-masked-output-S4-ListOps
         # # spiking_masks = self.snn_block(inputs, len(self.layers))
-        functional.reset_net(self.input_masking_net)
-        spiking_mask = self.input_masking_net(inputs.permute(1,0,2))    # [B, L, D] -> [L, B, D] (L == T)
-        spiking_mask = spiking_mask.permute(1,0,2)                      # [B, L, D], tensor([0., 1.]
+        functional.reset_net(self.masking_net)
+        spiking_mask = self.masking_net(inputs.permute(1,0,2))  # [B, L, D] -> [L, B, D] (L == T)
+        spiking_mask = spiking_mask.permute(1,0,2)              # [B, L, D], tensor([0., 1.]
         assert inputs.shape == spiking_mask.shape
         # # for i in range(256):
         # #     _spk_mask = spiking_mask[0,:,i]

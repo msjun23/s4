@@ -18,6 +18,7 @@ from src.models.nn.residual import registry as residual_registry
 import src.utils as utils
 import src.utils.registry as registry
 
+from src.models.sequence.backbones.exponential_moving_average import MultiHeadEMA
 
 class SequenceResidualBlock(SequenceModule):
     """Flexible residual block design. See model.py for meaning of options."""
@@ -45,10 +46,16 @@ class SequenceResidualBlock(SequenceModule):
         self.bidirectional = bidirectional
         self.transposed = transposed
 
-        self.layer = utils.instantiate(registry.layer, layer, d_input)
-        if self.bidirectional:
-            self.reverse_layer = utils.instantiate(registry.layer, layer, d_input)
-            self.bidirectional_linear = nn.Linear(2*self.layer.d_output, self.layer.d_output)
+        # self.layer = utils.instantiate(registry.layer, layer, d_input)
+        # if self.bidirectional:
+        #     self.reverse_layer = utils.instantiate(registry.layer, layer, d_input)
+        #     self.bidirectional_linear = nn.Linear(2*self.layer.d_output, self.layer.d_output)
+        self.layer = MultiHeadEMA(embed_dim=d_input, 
+                                  ndim=layer.d_state, 
+                                  bidirectional=bidirectional, 
+                                  truncation=layer.l_max, 
+                                  truc_norm=True)
+        self.layer.d_output = d_input
 
         # Residual
         # d_residual is the output dimension after residual
@@ -102,7 +109,9 @@ class SequenceResidualBlock(SequenceModule):
         if self.norm is not None and self.prenorm: y = self.norm(y)
 
         # Black box layer
-        y_for, new_state = self.layer(y, state=state, **kwargs)
+        # y_for, new_state = self.layer(y, state=state, **kwargs)
+        y_for = self.layer(x=y.permute(1,0,2), incremental_state=state) # [L, B, D]
+        y_for = y_for.permute(1,0,2)    # [L, B, D] -> [B, L, D]
         '''
         1. from /src/models/sequence/backbones/model.py
         self.layer: S4Block -> s4block.py

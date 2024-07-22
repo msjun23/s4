@@ -125,7 +125,7 @@ class SequenceModel(SequenceModule):
         # SNN
         functional.reset_net(self.masking_net)
         spiking_mask = self.masking_net(inputs.permute(1,0,2))  # [B, L, D] -> [L, B, D] (L == T)
-        spiking_mask = spiking_mask.permute(1,0,2)              # [B, L, D], tensor([0., 1.]
+        spiking_mask = spiking_mask.permute(1,0,2)              # [B, L, D], tensor([0., 1., 2.]
         assert inputs.shape == spiking_mask.shape
         inputs = spiking_mask * inputs
 

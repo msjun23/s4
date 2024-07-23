@@ -57,6 +57,7 @@ class SequenceModel(SequenceModule):
         dropinp: int = 0.0,
     ):
         super().__init__()
+        # self.b_idx = 0
         # Save arguments needed for forward pass
         self.d_model = d_model
         self.transposed = transposed
@@ -188,6 +189,9 @@ class SequenceModel(SequenceModule):
             '''
             next_states.append(state)
             if self.track_norms: output_norms.append(torch.mean(outputs.detach() ** 2))
+        # Final layer output vis
+        # vis.save_pathfinder_as_img(outputs[0,:,0], f'SpkEnc/pathfinder_{self.b_idx}.png')
+        # self.b_idx += 1
         if self.norm is not None: outputs = self.norm(outputs)
 
         if self.transposed: outputs = rearrange(outputs, 'b d ... -> b ... d')
@@ -196,8 +200,6 @@ class SequenceModel(SequenceModule):
             metrics = to_dict(output_norms, recursive=False)
             self.metrics = {f'norm/{i}': v for i, v in metrics.items()}
 
-        # vis.save_BLD_path_as_33grid_image(outputs, b_idx, 'D_imgs_outputs_masked.png')
-        # exit()
         return outputs, next_states
 
     @property

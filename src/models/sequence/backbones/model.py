@@ -2,7 +2,7 @@
 
 The SequenceModel class implements a generic (batch, length, d_input) -> (batch, length, d_output) transformation.
 """
-
+import vis
 from functools import partial
 from typing import Mapping, Optional
 
@@ -53,6 +53,7 @@ class SequenceModel(SequenceModule):
         dropinp: int = 0.0,
     ):
         super().__init__()
+        # self.b_idx = 0
         # Save arguments needed for forward pass
         self.d_model = d_model
         self.transposed = transposed
@@ -129,6 +130,9 @@ class SequenceModel(SequenceModule):
             '''
             next_states.append(state)
             if self.track_norms: output_norms.append(torch.mean(outputs.detach() ** 2))
+        # Final layer output vis
+        # vis.save_pathfinder_as_img(outputs[0,:,0], f's4/pathfinder_{self.b_idx}.png')
+        # self.b_idx += 1
         if self.norm is not None: outputs = self.norm(outputs)
 
         if self.transposed: outputs = rearrange(outputs, 'b d ... -> b ... d')

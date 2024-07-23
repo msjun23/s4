@@ -78,7 +78,7 @@ def save_BLD_path_as_image(tensor, index, filename, path='pathfinder'):
         raise ValueError("Index out of range")
     
     # Extract the [L, D] tensor
-    selected_tensor = tensor[index,:,127]
+    selected_tensor = tensor[index,:,0]
     # selected_tensor = tensor[index].sum(dim=-1)
     
     # selected_tensor = tensor[index,0,:]
@@ -175,9 +175,12 @@ def long_term_vis(tensor, filename):
 def save_BLD_path_as_33grid_image(tensor, index, filename):
     # tensor: [B, L, D]
     tensor = tensor[index]  # [L, D]
-    D_idx = [4, 45, 55, 
-             100, 142, 165, 
-             208, 226, 249]
+    # D_idx = [4, 45, 55, 
+    #          100, 142, 165, 
+    #          208, 226, 249]
+    D_idx = [0, 1, 2, 
+             3, 4, 5, 
+             6, 7, 8]
     
     # Create 3x3 grid fig
     fig, axs = plt.subplots(3, 3, figsize=(9, 9))
@@ -195,4 +198,49 @@ def save_BLD_path_as_33grid_image(tensor, index, filename):
     # Save the fig
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(filename)
+    plt.close()
+    
+def downsampling_pathx(tensor, index, filename):
+    pathx = tensor[index,:,0]
+    
+    # Convert the tensor to a numpy array
+    pathx_img = pathx.detach().cpu().view(128,128)
+    # Add batch and channel dimensions
+    pathx_img = pathx_img.unsqueeze(0).unsqueeze(0)
+
+    # Downsample the image to half its size (64x64)
+    # pathx_img = F.interpolate(pathx_img, size=(64, 64), mode='bilinear', align_corners=False)
+    # pathx_img = F.interpolate(pathx_img, size=(32, 32), mode='bilinear', align_corners=False)
+
+    # Remove batch and channel dimensions
+    pathx_img = pathx_img.squeeze(0).squeeze(0)
+
+    # Plot the array as an image
+    plt.imshow(pathx_img, cmap='gray')
+    plt.axis('off')
+    
+    # Save the image
+    plt.savefig(filename, bbox_inches='tight', pad_inches=0)
+    plt.close()
+    
+def save_pathfinder_as_img(tensor, filename):
+    # tensor: [L]
+    np_img = tensor.detach().cpu().view(32,32).numpy()  # [32, 32]
+    # Plot the array as an image
+    plt.imshow(np_img, cmap='gray')
+    plt.axis('off')
+    
+    # Save the image
+    plt.savefig(filename, bbox_inches='tight', pad_inches=0)
+    plt.close()
+    
+def save_pathX_as_img(tensor, filename):
+    # tensor: [L]
+    np_img = tensor.detach().cpu().view(128,128).numpy()  # [128, 128]
+    # Plot the array as an image
+    plt.imshow(np_img, cmap='gray')
+    plt.axis('off')
+    
+    # Save the image
+    plt.savefig(filename, bbox_inches='tight', pad_inches=0)
     plt.close()

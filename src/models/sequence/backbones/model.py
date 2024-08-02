@@ -189,6 +189,7 @@ class SequenceModel(SequenceModule):
             '''
             next_states.append(state)
             if self.track_norms: output_norms.append(torch.mean(outputs.detach() ** 2))
+        outputs = spiking_mask * outputs
         # Final layer output vis
         # vis.save_pathfinder_as_img(outputs[0,:,0], f'SpkEnc/pathfinder_{self.b_idx}.png')
         # self.b_idx += 1
